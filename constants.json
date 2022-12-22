@@ -1,0 +1,8 @@
+{
+  "host": "",
+  "username": "",
+  "password": "",
+  "space_key": "",
+  "root_page_on_confluence": "t",
+  "log_path": "log.log"
+}
