@@ -3,6 +3,6 @@
   "username": "",
   "password": "",
   "space_key": "",
-  "root_page_on_confluence": "t",
+  "root_page_on_confluence": "",
   "log_path": "log.log"
 }
