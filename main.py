@@ -3,7 +3,7 @@ import logging
 import requests
 import urllib3
 import re
-
+import sys
 
 class CustomFormatter(logging.Formatter):
     def __init__(self):
@@ -205,23 +205,23 @@ def fix_label(page, parent_id=""):
 
 
 if __name__ == '__main__':
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    with open('constants.json', encoding="utf8") as const_file:
+        constants = json.load(const_file)
+
+    if constants['host'][-1] != '/':
+        constants['host'] += '/'
+
+    smart_logger = logging.getLogger()
+    auth_details = (constants['username'], constants['password'])
+
     try:
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-        with open('constants.json', encoding="utf8") as const_file:
-            constants = json.load(const_file)
-
-        if constants['host'][-1] != '/':
-            constants['host'] += '/'
-
-        smart_logger = logging.getLogger()
-        auth_details = (constants['username'], constants['password'])
-
         init_logger()
         fix_label(constants['root_page_on_confluence'])
 
-        print("RUN COMPLETED!")
-        print("--------------")
+        smart_logger.info("RUN COMPLETED!")
+        smart_logger.info("--------------")
     except Exception as e:
-        print("GENERAL ERROR OCCURED:")
-        print(e)
+        smart_logger.error("GENERAL ERROR OCCURED:")
+        smart_logger.error(e)
