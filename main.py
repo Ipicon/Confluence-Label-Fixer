@@ -205,16 +205,23 @@ def fix_label(page, parent_id=""):
 
 
 if __name__ == '__main__':
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    try:
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    with open('constants.json', encoding="utf8") as const_file:
-        constants = json.load(const_file)
+        with open('constants.json', encoding="utf8") as const_file:
+            constants = json.load(const_file)
 
-    if constants['host'][-1] != '/':
-        constants['host'] += '/'
+        if constants['host'][-1] != '/':
+            constants['host'] += '/'
 
-    smart_logger = logging.getLogger()
-    auth_details = (constants['username'], constants['password'])
+        smart_logger = logging.getLogger()
+        auth_details = (constants['username'], constants['password'])
 
-    init_logger()
-    fix_label(constants['root_page_on_confluence'])
+        init_logger()
+        fix_label(constants['root_page_on_confluence'])
+
+        print("RUN COMPLETED!")
+        print("--------------")
+    except Exception as e:
+        print("GENERAL ERROR OCCURED:")
+        print(e)
