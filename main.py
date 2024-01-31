@@ -95,13 +95,24 @@ def get_page_label_name(page_name):
 def get_children(url):
     global auth_details, constants
 
+    children = []
+    has_more = True
     url = constants['host'] + url[1:] + '/page'
 
-    return request_request(
-        "GET",
-        url,
-        auth=auth_details,
-    )['results']
+    while has_more:
+        data = request_request(
+            "GET",
+            url,
+            auth=auth_details,
+        )
+        children.extend(data['results'])
+
+        if 'next' in data['_links']:
+            url = constants['host'] + data['_links']['next'][1:]
+        else:
+            has_more = False
+
+    return children
 
 
 def is_file(url):
