@@ -2,6 +2,7 @@ import json
 import logging
 import time
 
+from tinydb import TinyDB, Query
 import requests
 import urllib3
 import re
@@ -45,6 +46,10 @@ def request_request(method, url, **additional_params):
     retries = 0
 
     while retries < max_retries:
+        if retries > 0:
+            smart_logger.info(f"Retrying request in 1 minute, attempt {retries + 1} out of {max_retries}.")
+            time.sleep(60)
+
         try:
             response = requests.request(method, url, verify=False, **additional_params)
             response.raise_for_status()
@@ -67,10 +72,6 @@ def request_request(method, url, **additional_params):
             smart_logger.error(e)
 
         retries += 1
-
-        smart_logger.info(f"Retrying request in 1 minute, attempt {retries} out of {max_retries}.")
-        time.sleep(60)
-
     try:
         raise requests.exceptions.RequestException
     except requests.exceptions.RequestException:
@@ -197,39 +198,58 @@ def add_labels(page_id, labels):
         )
 
 
+def cache_page(page_id, page_name):
+    global db, smart_logger
+
+    smart_logger.info(f"Caching page '{page_name}'")
+    db.insert({"id": page_id})
+
+
+def is_cached(page_id: str):
+    global db, Cache
+    result = db.search(Cache.id == page_id)
+
+    return len(result) != 0
+
+
 def fix_label(page, parent_id=""):
     global smart_logger
-
     page_data = get_page_data(page)
+    page_id = page_data['id']
     children_url = page_data['_expandable']['children']
-    delete_labels(page_data['id'])
 
-    """ If not root, load parent labels"""
-    if parent_id:
-        smart_logger.info("Loading parent labels.")
-        parent_labels = get_page_labels(parent_id)
-        add_labels(page_data['id'], [label['name'] for label in parent_labels])
+    if is_cached(page_id):
+        smart_logger.info("Page already cached, skipping...")
+    else:
+        delete_labels(page_id)
 
-    """ Check if file, if so finish"""
-    if is_file(children_url):
-        smart_logger.info(f' "{page}" is a file, no need to add additional label or go deeper.')
-        return
+        """ If not root, load parent labels"""
+        if parent_id:
+            smart_logger.info("Loading parent labels.")
+            parent_labels = get_page_labels(parent_id)
+            add_labels(page_id, [label['name'] for label in parent_labels])
 
-    new_label = get_page_label_name(page)
-    smart_logger.info(f'Generating label for current page: "{new_label}"')
+        """ Check if file, if so finish"""
+        if is_file(children_url):
+            smart_logger.info(f' "{page}" is a file, no need to add additional label or go deeper.')
+            return
 
-    """ Check if title is enumerated """
-    if re.search(r"^.* - #\d+$", page):
-        new_label = new_label.split("_")[:-1]
-        new_label = "_".join(new_label)
-        smart_logger.info(f'Page title is enumerated, regenerating label: "{new_label}"')
+        new_label = get_page_label_name(page)
+        smart_logger.info(f'Generating label for current page: "{new_label}"')
 
-    add_labels(page_data['id'], [new_label])
+        """ Check if title is enumerated """
+        if re.search(r"^.* - #\d+$", page):
+            new_label = new_label.split("_")[:-1]
+            new_label = "_".join(new_label)
+            smart_logger.info(f'Page title is enumerated, regenerating label: "{new_label}"')
 
-    smart_logger.info(f'Finished working on: "{page}", fetching children.')
+        add_labels(page_id, [new_label])
+        cache_page(page_id, page)
+
+        smart_logger.info(f'Finished working on: "{page}", fetching children.')
     for child in get_children(children_url):
         smart_logger.info(f"Going deeper from: \"{page}\" to: \"{child['title']}\"")
-        fix_label(child['title'], page_data['id'])
+        fix_label(child['title'], page_id)
 
 
 if __name__ == '__main__':
@@ -244,6 +264,8 @@ if __name__ == '__main__':
 
     smart_logger = logging.getLogger()
     auth_details = (constants['username'], constants['password'])
+    db = TinyDB(constants['db'])
+    Cache = Query()
 
     try:
         init_logger()
@@ -252,5 +274,5 @@ if __name__ == '__main__':
         smart_logger.info("RUN COMPLETED!")
         smart_logger.info("--------------")
     except Exception as e:
-        smart_logger.error("GENERAL ERROR OCCURED:")
+        smart_logger.error("GENERAL ERROR OCCURRED:")
         smart_logger.error(e)

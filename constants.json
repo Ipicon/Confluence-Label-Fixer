@@ -4,5 +4,6 @@
   "password": "",
   "space_key": "",
   "root_page_on_confluence": "",
-  "log_path": "log.log"
+  "log_path": "log.log",
+  "db": "db.json"
 }
